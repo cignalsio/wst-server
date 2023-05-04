@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_repr::*;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Request {
@@ -24,10 +25,11 @@ pub struct Response {
     l: Option<LeapSecond>
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug)]
+#[repr(u8)]
 pub enum LeapSecond {
     None = 0,
-    Plus,
-    Minus,
-    NotAvailable
+    Plus = 1,
+    Minus = 2,
+    NotAvailable = 3
 }
