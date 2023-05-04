@@ -3,6 +3,12 @@ name = "wst-server"
 version = "0.1.0"
 edition = "2021"
 authors = ["Brad Folkens <i.am@bradfolkens.com>"]
+license = "MIT"
+repository = "https://github.com/cignalsio/wst-server"
+description = "WebSocket Time Protocol (WST) - Server Implementation"
+keywords = ["WebSocket", "WST", "NTP", "PTP", "cli", "time"]
+include = ["src", "Cargo.toml", "LICENSE", "README.md"]
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -15,3 +21,7 @@ tokio-tungstenite = "*"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_repr = "0.1"
+
+[[bin]]
+name = "wst"
+path = "src/main.rs"
