@@ -44,7 +44,7 @@ async fn main() {
 
 async fn handle_request(mut request: Request<Body>, remote_addr: SocketAddr) -> Result<Response<Body>, Infallible> {
     match (request.uri().path(), request.headers().contains_key(header::UPGRADE)) {
-        ("/", true) => {
+        ("/wst", true) => {
             // assume request is a handshake, so create the handshake response
             let response = match handshake::server::create_response_with_body(&request, || Body::empty()) {
                 Ok(response) => {
