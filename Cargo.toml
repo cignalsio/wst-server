@@ -2,7 +2,7 @@
 name = "wst-server"
 version = "0.1.0"
 edition = "2021"
-authors = ["Brad Folkens <i.am@bradfolkens.com>"]
+authors = ["Brad Folkens <hello@bradfolkens.com>"]
 license = "MIT"
 repository = "https://github.com/cignalsio/wst-server"
 description = "WebSocket Time Protocol (WST) - Server Implementation"
