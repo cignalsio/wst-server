@@ -3,15 +3,15 @@
   ...
 }:
 let
-  src = ../.;
   pname = "wst";
   version = "0.1.0";
+  src = pkgs.lib.cleanSource ../.;
 in
 pkgs.rustPlatform.buildRustPackage {
   inherit
-    src
     pname
     version
+    src
     ;
 
   cargoLock.lockFile = ../Cargo.lock;
