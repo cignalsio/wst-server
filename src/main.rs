@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::convert::Infallible;
 use futures_util::{SinkExt, StreamExt};
 use log::*;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite;
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::tungstenite;
@@ -14,6 +15,8 @@ use hyper::service::{make_service_fn, service_fn};
 
 mod protocol;
 
+#[cfg(test)]
+mod tests;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -57,19 +60,7 @@ async fn handle_request(mut request: Request<Body>, remote_addr: SocketAddr) -> 
                                     None,
                                 ).await;
 
-                                let (mut ws_write, mut ws_read) = ws_stream.split();
-
-                                while let Some(data) = ws_read.next().await {
-                                    let data = data.unwrap();
-                                    if data.is_text() || data.is_binary() {
-                                        let mut request: protocol::Request = serde_json::from_str(&data.to_string()).unwrap();
-
-                                        let response = request.process(get_epoch_ms());
-
-                                        let json = serde_json::to_string(&response).unwrap();
-                                        ws_write.send(tungstenite::Message::Text(json)).await.unwrap();
-                                    }
-                                };
+                                handle_websocket(ws_stream, remote_addr).await;
                             },
                             Err(e) =>
                                 println!("error when trying to upgrade connection \
@@ -100,6 +91,61 @@ async fn handle_request(mut request: Request<Body>, remote_addr: SocketAddr) -> 
             *res.status_mut() = StatusCode::NOT_FOUND;
             return Ok(res);
         }
+    }
+}
+
+async fn handle_websocket<S>(ws_stream: WebSocketStream<S>, remote_addr: SocketAddr)
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let (mut ws_write, mut ws_read) = ws_stream.split();
+
+    while let Some(data) = ws_read.next().await {
+        let data = match data {
+            Ok(data) => data,
+            Err(error) => {
+                log_websocket_error(remote_addr, "read", &error);
+                break;
+            }
+        };
+
+        if !data.is_text() && !data.is_binary() {
+            // Keep polling so Tungstenite flushes automatic pong and close replies.
+            continue;
+        }
+
+        let mut request: protocol::Request = match serde_json::from_slice(&data.into_data()) {
+            Ok(request) => request,
+            Err(error) => {
+                warn!("Invalid WST request from {}: {}", remote_addr, error);
+                break;
+            }
+        };
+
+        let response = request.process(get_epoch_ms());
+        let json = match serde_json::to_string(&response) {
+            Ok(json) => json,
+            Err(error) => {
+                error!("Failed to serialize WST response for {}: {}", remote_addr, error);
+                break;
+            }
+        };
+
+        if let Err(error) = ws_write.send(tungstenite::Message::Text(json)).await {
+            log_websocket_error(remote_addr, "write", &error);
+            break;
+        }
+    }
+}
+
+fn log_websocket_error(remote_addr: SocketAddr, operation: &str, error: &tungstenite::Error) {
+    match error {
+        tungstenite::Error::ConnectionClosed
+        | tungstenite::Error::AlreadyClosed
+        | tungstenite::Error::Protocol(tungstenite::error::ProtocolError::ResetWithoutClosingHandshake) => {
+            debug!("WebSocket {} ended for {}: {}", operation, remote_addr, error);
+        }
+        _ => warn!("WebSocket {} failed for {}: {}", operation, remote_addr, error),
     }
 }
 
