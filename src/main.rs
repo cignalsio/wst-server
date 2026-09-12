@@ -25,7 +25,9 @@ async fn main() {
         .nth(1)
         .unwrap_or_else(|| "127.0.0.1:8080".to_string());
 
-    info!("Listening on: {}", addr);
+    #[cfg(unix)]
+    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        .expect("failed to install SIGTERM handler");
 
     let socket_addr = SocketAddr::from_str(&addr).unwrap();
 
@@ -39,9 +41,21 @@ async fn main() {
     });
 
     let server = Server::bind(&socket_addr).serve(make_svc);
+    info!("Listening on: {}", server.local_addr());
 
-    if let Err(e) = server.await {
-        eprintln!("server error: {}", e);
+    tokio::select! {
+        result = server => {
+            if let Err(e) = result {
+                eprintln!("server error: {}", e);
+            }
+        }
+        _ = tokio::signal::ctrl_c() => {},
+        _ = async {
+            #[cfg(unix)]
+            terminate.recv().await;
+            #[cfg(not(unix))]
+            std::future::pending::<()>().await;
+        } => {},
     }
 }
 
