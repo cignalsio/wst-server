@@ -13,7 +13,6 @@
         "x86_64-linux"
         "aarch64-linux"
         "aarch64-darwin"
-        "x86_64-darwin"
       ];
       perSystem =
         {
@@ -28,6 +27,8 @@
           # Per-system attributes can be defined here. The self' and inputs'
           # module parameters provide easy access to attributes of the same
           # system.
+
+          devShells.default = import ./nix/shell.nix { inherit pkgs; };
 
           packages.default = pkgs.callPackage ./nix/package.nix { };
         };
